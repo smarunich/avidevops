@@ -1,0 +1,67 @@
+- hosts: localhost
+  connection: local
+  vars:
+    avi_controller: 192.168.1.41
+    avi_username: admin
+    api_version: 17.2.7
+    avi_password: AviNetworks123!
+    avi_default_password: 58NFaGDJm(PJH0G
+    from_email: admin@avinetworks.com
+    dns_server01: 192.168.0.100
+    dns_server02: 8.8.8.8
+    dns_search_domain: lab.sm
+    ntp_server01: 0.us.pool.ntp.org
+    ntp_server02: 1.us.pool.ntp.org
+
+  roles:
+    - { role: avinetworks.avisdk }
+
+  tasks:
+    - name: Wait for Controller be ready
+      uri:
+        validate_certs: False
+        url: "http://{{ avi_controller }}/"
+        method: GET
+        status_code: 200,302,301,503
+      register: statusCode_output
+      until: statusCode_output.status == 200
+      retries: 120
+      delay: 60
+
+    - name: Change admin default password
+      avi_useraccount:
+        controller: "{{ avi_controller }}"
+        username: "{{ avi_username }}"
+        password: "{{ avi_password }}"
+        api_version: "{{ api_version }}"
+        old_password: "{{ avi_default_password }}"
+
+    - name: Basic Controller Config
+      avi_systemconfiguration:
+        controller: "{{ avi_controller }}"
+        username: "{{ avi_username }}"
+        password: "{{ avi_password }}"
+        api_version: "{{ api_version }}"
+        email_configuration:
+          smtp_type: SMTP_LOCAL_HOST
+          from_email: "{{ from_email }}"
+        global_tenant_config:
+          se_in_provider_context: true
+          tenant_access_to_provider_se: true
+          tenant_vrf: false
+        dns_configuration:
+          search_domain: "{{ dns_search_domain }}"
+          server_list:
+            - type: V4
+              addr: "{{ dns_server01 }}"
+            - type: V4
+              addr: "{{ dns_server02 }}"
+        ntp_configuration:
+          ntp_servers:
+            - server:
+                type: DNS
+                addr: "{{ ntp_server01 }}"
+            - server:
+                type: DNS
+                addr: "{{ ntp_server02 }}"
+        default_license_tier: ENTERPRISE_18
