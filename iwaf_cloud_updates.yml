@@ -1,0 +1,93 @@
+# ansible-playbook cloud_updates.yml -e "controller=student1.controller username=admin password=password student_id=student1 student_server=`getent hosts student1.server | awk '{ print $1 }'`"
+- connection: local
+  hosts: localhost
+  roles:
+  - avinetworks.avisdk
+  vars:
+    api_version: 17.2.7
+    avi_controller: '{{ controller }}'
+    avi_username: '{{ username }}'
+    avi_password: '{{ password }}'
+
+  tasks:
+  - avi_serviceenginegroup:
+      avi_api_update_method: patch
+      avi_api_patch_op: add
+      api_context: '{{api_context | default(omit)}}'
+      cloud_ref: /api/cloud?name=aws
+      controller: '{{ controller }}'
+      username: '{{ username }}'
+      password: '{{ password }}'
+      state: '{{ state | default(omit)}}'
+      state: present
+      se_name_prefix: '{{ student_id }}'
+      name: Default-Group
+    name: "{{ 'Create or Update Service Engine Configuration:' + student_id }}"
+  - avi_pool:
+      api_context: '{{api_context | default(omit)}}'
+      cloud_ref: /api/cloud?name=aws
+      controller: '{{ controller }}'
+      username: '{{ username }}'
+      password: '{{ password }}'
+      state: '{{ state | default(omit)}}'
+      state: present
+      health_monitor_refs:
+      - /api/healthmonitor/?name=System-HTTP
+      name: shop_pool_8080
+      servers:
+      - description: ''
+        enabled: true
+        ip:
+          addr: '{{ student_server }}'
+          type: V4
+        port: '8080'
+    name: 'Create or Update pool: shop_pool_8080'
+  - avi_pool:
+      api_context: '{{api_context | default(omit)}}'
+      cloud_ref: /api/cloud?name=aws
+      controller: '{{ controller }}'
+      username: '{{ username }}'
+      password: '{{ password }}'
+      state: '{{ state | default(omit)}}'
+      state: present
+      name: dvwa_pool_8081
+      health_monitor_refs:
+      - /api/healthmonitor/?name=System-HTTP
+      servers:
+      - description: ''
+        enabled: true
+        ip:
+          addr: '{{ student_server }}'
+          type: V4
+        port: '8081'
+    name: 'Create or Update pool: dvwa_pool_8081'
+  - name: 'Set facts for virtualservice: shop'
+    set_fact:
+      avi_config:
+        virtualservice:
+          - name: shop
+            cloud_ref: /api/cloud?name=aws
+            pool_ref: "/api/pool?name=shop_pool_8080"
+            vip:
+              - subnet_uuid: subnet-0075ff48
+                auto_allocate_ip: true
+            services:
+            - port: 80
+  - name: 'Create or Update virtualservice: shop'
+    include_role:
+      name: avinetworks.aviconfig
+  - name: 'Set facts for virtualservice: dvwa'
+    set_fact:
+      avi_config:
+        virtualservice:
+          - name: dvwa
+            cloud_ref: /api/cloud?name=aws
+            pool_ref: "/api/pool?name=dvwa_pool_8081"
+            vip:
+              - subnet_uuid: subnet-0075ff48
+                auto_allocate_ip: true
+            services:
+            - port: 80
+  - name: 'Create or Update virtualservice: dvwa'
+    include_role:
+      name: avinetworks.aviconfig
