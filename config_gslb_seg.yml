@@ -1,0 +1,83 @@
+---
+- connection: local
+  hosts: localhost
+  roles:
+  - avinetworks.avisdk
+  vars:
+    gslb_seg_vcenter_datastore_name: "{{ lookup ('vars', 'az' + gslb_seg_az_id + '_vcenter_datastore_name') }}"
+    gslb_seg_vcenter_cluster_ref: "{{ '/api/vimgrclusterruntime/name=' + lookup ('vars', 'az' + gslb_seg_az_id + '_vcenter_cluster_name') }}"
+    gslb_seg_vcenter_mgmt_pg_ref: "{{ '/api/vimgrclusterruntime/name=' + lookup ('vars', 'az' + gslb_seg_az_id + '_vcenter_mgmt_pg_name') }}"
+    gslb_seg_vcenter_mgmt_pg_name: "{{ lookup ('vars', 'az' + gslb_seg_az_id + '_vcenter_mgmt_pg_name') }}"
+    gslb_seg_iprange_network: "{{ lookup ('vars', 'az' + gslb_seg_az_id + '_vcenter_mgmt_network') }}"
+    gslb_seg_iprange_netmask: "{{ lookup ('vars', 'az' + gslb_seg_az_id + '_vcenter_mgmt_netmask') }}"
+    gslb_seg_iprange_network_mask: "{{ gslb_seg_iprange_network + '/' + gslb_seg_iprange_netmask }}"
+    gslb_seg_iprange_begin: "{{ gslb_seg_iprange_network_mask | ipaddr('net') | ipaddr('6') | regex_replace('/'+gslb_seg_iprange_netmask,'') }}"
+    gslb_seg_iprange_end: "{{ gslb_seg_iprange_network_mask | ipaddr('net') | ipaddr('15') | regex_replace('/'+gslb_seg_iprange_netmask,'')  }} "
+    gslb_env: "{{ lookup ('vars', 'gslb_env' + gslb_seg_env_id) }}"
+    gslb_subdomain: "{{ lookup ('vars', 'gslb_subdomain_az' + gslb_seg_az_id) }}"
+    gslb_seg_name: "{{ gslb_subdomain +'-'+ gslb_env + '-segrp-' + dc_name + '-azb-' + gslb_seg_az_id }}"
+  tasks:
+  - avi_network:
+      avi_api_update_method: patch
+      avi_api_patch_op: add
+      api_context: '{{ api_context | default(omit) }}'
+      api_version: '{{ api_version }}'
+      controller: '{{ avi_controller }}'
+      username: '{{ avi_username }}'
+      password: '{{ avi_password }}'
+      tenant: '{{ tenant_name }}'
+      cloud_ref: "{{ '/api/cloud/?name=' + cloud_name }}"
+      state: present
+      name: '{{ gslb_seg_vcenter_mgmt_pg_ref }}'
+      dhcp_enabled: false
+      configured_subnets:
+          - prefix:
+              mask: '{{ gslb_seg_iprange_netmask }}'
+              ip_addr:
+                type: V4
+                addr: '{{ gslb_seg_iprange_network }}'
+            static_ranges:
+              - begin:
+                  type: V4
+                  addr: '{{ gslb_seg_iprange_begin }}'
+                end:
+                  type: V4
+                  addr: '{{ gslb_seg_iprange_end }}'
+    name: "{{ 'Create or Update Network Configuration:' + gslb_seg_vcenter_mgmt_pg_name}}"
+  - avi_serviceenginegroup:
+      avi_api_update_method: patch
+      avi_api_patch_op: add
+      api_context: '{{ api_context | default(omit) }}'
+      api_version: '{{ api_version }}'
+      controller: '{{ avi_controller }}'
+      username: '{{ avi_username }}'
+      password: '{{ avi_password }}'
+      tenant: '{{ tenant_name }}'
+      cloud_ref: "{{ '/api/cloud/?name=' + cloud_name }}"
+      state: present
+      name: "{{ gslb_seg_name }}"
+      se_name_prefix: "{{ gslb_seg_name | regex_replace('-','') }}"
+      vcpus_per_se: '{{ gslb_seg_vcpus_per_se }}'
+      memory_per_se: '{{ gslb_seg_memory_per_se }}'
+      extra_shared_config_memory: '{{ gslb_seg_extra_shared_config_memory }}'
+      mem_reserve: '{{ gslb_seg_mem_reserve }}'
+      disk_per_se: '{{ gslb_seg_disk_per_se }}'
+      algo: '{{ gslb_seg_algo }}'
+      ha_mode: '{{ gslb_seg_ha_mode }}'
+      active_standby: '{{ gslb_seg_active_standby }}'
+      max_vs_per_se: '{{ gslb_seg_max_vs_per_se }}'
+      se_deprovision_delay: '{{ gslb_seg_se_deprovision_delay }}'
+      vcenter_datastore_mode: '{{ gslb_seg_vcenter_datastore_mode }}'
+      vcenter_folder: '{{ vcenter_folder_name }}'
+      vcenter_datastores:
+        - datastore_name: "{{ gslb_seg_vcenter_datastore_name }}"
+      vcenter_clusters:
+        include: true
+        cluster_refs:
+          - "{{ gslb_seg_vcenter_cluster_ref }}"
+      mgmt_network_ref:
+        - "{{ gslb_seg_vcenter_mgmt_pg_ref }}"
+      vcenter_datastores_include: true
+      max_se: '{{ gslb_seg_max_se }}'
+      buffer_se: '{{ gslb_seg_buffer_se }}'
+    name: "{{ 'Create or Update Service Engine Configuration:' + gslb_seg_name}}"
