@@ -1,0 +1,69 @@
+---
+- connection: local
+  hosts: localhost
+  roles:
+  - avinetworks.avisdk
+  vars:
+    gslb_seg_vcenter_cluster_name: "{{ lookup ('vars', 'az' + gslb_seg_az_id + '_vcenter_cluster_name') }}"
+    gslb_env: "{{ lookup ('vars', 'gslb_env' + gslb_seg_env_id) }}"
+    gslb_subdomain: "{{ lookup ('vars', 'gslb_subdomain_az' + gslb_seg_az_id) }}"
+    gslb_seg_name: "{{ gslb_subdomain +'-'+ gslb_env + '-segrp-' + vcenter_dc_name + '-az-' + gslb_seg_az_id }}"
+    gslb_seg_vcenter_data_pg_name: "{{ lookup ('vars', 'az' + gslb_seg_az_id + '_vcenter_data_pg_name') }}"
+    gslb_seg_data_iprange_network: "{{ lookup ('vars', 'az' + gslb_seg_az_id + '_vcenter_data_network') }}"
+    gslb_seg_data_iprange_netmask: "{{ lookup ('vars', 'az' + gslb_seg_az_id + '_vcenter_data_netmask') }}"
+    gslb_seg_data_iprange_network_mask: "{{ gslb_seg_data_iprange_network + '/' + gslb_seg_data_iprange_netmask }}"
+    gslb_seg_data_vrf: "{{ 'data_' + gslb_seg_vcenter_cluster_name + '_' + gslb_subdomain }}"
+    gslb_seg_data_vrf_gw: "{{ lookup ('vars', 'az' + gslb_seg_az_id + '_vcenter_data_vrf_gw') }}"
+    gslb_full_domain_name: "{{ gslb_subdomain +'.'+ gslb_env + '.' + gslb_domain }}"
+    gslb_dns_vs_name: "{{ 'vs_dns_'+ gslb_full_domain_name }}"
+    gslb_dns_vs_address: "{{ lookup ('vars', 'gslb_dns_vs_env' + gslb_seg_env_id + '_az' + gslb_seg_az_id +'_address') }}"
+
+  tasks:
+  - avi_virtualservice:
+      avi_api_update_method: patch
+      avi_api_patch_op: add
+      api_context: '{{ api_context | default(omit) }}'
+      api_version: '{{ api_version }}'
+      controller: '{{ avi_controller }}'
+      username: '{{ avi_username }}'
+      password: '{{ avi_password }}'
+      tenant: '{{ tenant_name }}'
+      cloud_ref: "{{ '/api/cloud/?name=' + cloud_name }}"
+      state: present
+      name: "{{ gslb_dns_vs_name }}"
+      application_profile_ref: '/api/applicationprofile/?name=System-DNS'
+      network_profile_ref: '/api/networkprofile/?name=System-UDP-Per-Pkt'
+      vrf_context_ref: "{{ '/api/vrfcontext/?name=' + gslb_seg_data_vrf }}"
+      services:
+        - enable_ssl: false
+          port_range_end: 53
+          port: 53
+        - enable_ssl: false
+          port_range_end: 53
+          port: 53
+          override_network_profile_ref: '/api/networkprofile/?name=System-TCP-Proxy'
+      se_group_ref: "/api/serviceenginegroup/?name={{ gslb_seg_name }}"
+      vip:
+          -
+            vip_id: 0
+            subnet:
+              mask: "{{ gslb_seg_data_iprange_netmask }}"
+              ip_addr:
+                type: V4
+                addr: "{{ gslb_seg_data_iprange_network }}"
+            ip_address:
+                type: V4
+                addr: "{{ gslb_dns_vs_address }}"
+            network_ref: '/api/network/?name={{ gslb_seg_vcenter_data_pg_name }}'
+    name: "{{ 'Create or Update VS:' + gslb_dns_vs_name}}"
+  - name: Get VS info "{{ gslb_dns_vs_name }}"
+    avi_api_session:
+      username: "{{ avi_username }}"
+      password: "{{ avi_password }}"
+      controller: "{{ avi_controller }}"
+      api_version: "{{ api_version }}"
+      http_method: get
+      path: virtualservice
+      params:
+        name: "{{ gslb_dns_vs_name }}"
+    register: vs_info

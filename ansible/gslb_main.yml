@@ -1,0 +1,51 @@
+---
+- hosts: localhost
+  connection: local
+  roles:
+  - { role: avinetworks.avicontroller-vmware }
+  - { role: avinetworks.aviconfig }
+  - { role: avinetworks.avisdk }
+
+- name: "{{ 'Deploy Controllers OVAs to VMware Infrastructure' }}"
+  import_playbook: deploy_controllers_vmware.yml
+
+- name: "{{ 'Config Avi Controller Cluster' }}"
+  import_playbook: config_controller_cluster.yml
+
+- name: "{{ 'Config VMware Cloud Connector' }}"
+  import_playbook: config_cloud_connector.yml
+
+- name: "{{ 'Config GSLB infrastructure' }}"
+  import_playbook: config_gslb_infra.yml
+
+- name: "{{ 'Provision Service Engine Group and DNS VS within enviroment ' + gslb_env1 + 'for domain ' + gslb_subdomain_az1 }}"
+  import_playbook: config_gslb_seg.yml
+  vars:
+    gslb_seg_env_id: "1"
+    gslb_seg_az_id: "1"
+
+- name: "{{ 'Provision Service Engine Group and DNS VS within enviroment ' + gslb_env1 + 'for domain ' + gslb_subdomain_az2 }}"
+  import_playbook: config_gslb_seg.yml
+  vars:
+    gslb_seg_env_id: "1"
+    gslb_seg_az_id: "2"
+- name: "{{ 'Provision Service Engine Group and DNS VS within enviroment ' + gslb_env1 + 'for domain ' + gslb_subdomain_az3 }}"
+  import_playbook: config_gslb_seg.yml
+  vars:
+    gslb_seg_env_id: "1"
+    gslb_seg_az_id: "3"
+- name: "{{ 'Provision Service Engine Group and DNS VS within enviroment ' + gslb_env2 + 'for domain ' + gslb_subdomain_az1 }}"
+  import_playbook: config_gslb_seg.yml
+  vars:
+    gslb_seg_env_id: "2"
+    gslb_seg_az_id: "1"
+- name: "{{ 'Provision Service Engine Group and DNS VS enviroment ' + gslb_env2 + 'for domain ' + gslb_subdomain_az2 }}"
+  import_playbook: config_gslb_seg.yml
+  vars:
+    gslb_seg_env_id: "2"
+    gslb_seg_az_id: "2"
+- name: "{{ 'Provision Service Engine Group and DNS VS enviroment ' + gslb_env2 + 'for domain ' + gslb_subdomain_az3 }}"
+  import_playbook: config_gslb_seg.yml
+  vars:
+    gslb_seg_env_id: "2"
+    gslb_seg_az_id: "3"

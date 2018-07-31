@@ -1,0 +1,114 @@
+---
+- hosts: localhost
+  connection: local
+  roles:
+  - avinetworks.avisdk
+  vars:
+    avi_credentials:
+      username: "{{ avi_username }}"
+      password: "{{ avi_password }}"
+      controller: "{{ node1_avi_controller_mgmt_ip }}"
+      api_version: "{{ api_version }}"
+  tasks:
+    - name: "{{ 'Waiting for ' + node1_avi_controller_vmname + ' readiness' }}"
+      uri:
+        validate_certs: False
+        url: "{{ 'https://' + node1_avi_controller_mgmt_ip + '/'}}"
+        method: GET
+        status_code: 200,302,301,503
+      register: status_code
+      until: status_code.status == 200
+      retries: 10
+      delay: 60
+
+    - name: "{{ 'Waiting for ' + node2_avi_controller_vmname + ' readiness' }}"
+      uri:
+        validate_certs: False
+        url: "{{ 'https://' + node2_avi_controller_mgmt_ip + '/'}}"
+        method: GET
+        status_code: 200,302,301,503
+      register: status_code
+      until: status_code.status == 200
+      retries: 10
+      delay: 60
+
+    - name: "{{ 'Waiting for ' + node3_avi_controller_vmname + ' readiness' }}"
+      uri:
+        validate_certs: False
+        url: "{{ 'https://' + node3_avi_controller_mgmt_ip + '/'}}"
+        method: GET
+        status_code: 200,302,301,503
+      register: status_code
+      until: status_code.status == 200
+      retries: 10
+      delay: 60
+
+    - name: Change admin default password
+      avi_useraccount:
+        controller: "{{ node1_avi_controller_mgmt_ip }}"
+        username: "{{ avi_username }}"
+        password: "{{ avi_password }}"
+        old_password: "{{ avi_default_password }}"
+        api_version: "{{ api_version }}"
+
+    - name: Basic Controller Config
+      avi_systemconfiguration:
+        controller: "{{ node1_avi_controller_mgmt_ip }}"
+        username: "{{ avi_username }}"
+        password: "{{ avi_password }}"
+        api_version: "{{ api_version }}"
+        email_configuration:
+          smtp_type: SMTP_LOCAL_HOST
+          from_email: "{{ avi_mgmt_email }}"
+        global_tenant_config:
+          se_in_provider_context: true
+          tenant_access_to_provider_se: true
+          tenant_vrf: false
+        dns_configuration:
+          search_domain: ''
+          server_list:
+            - type: V4
+              addr: "{{ avi_mgmt_dns_server01 }}"
+            - type: V4
+              addr: "{{ avi_mgmt_dns_server02 }}"
+        portal_configuration:
+          use_uuid_from_input: false
+          redirect_to_https: true
+          disable_remote_cli_shell: false
+          enable_clickjacking_protection: true
+          enable_http: true
+          enable_https: true
+          password_strength_check: true
+          allow_basic_authentication: false
+        ntp_configuration:
+          ntp_servers:
+            - server:
+                type: DNS
+                addr: "{{ avi_mgmt_ntp_server01 }}"
+            - server:
+                type: DNS
+                addr: "{{ avi_mgmt_ntp_server02 }}"
+        default_license_tier: ENTERPRISE_18
+
+    - name: Creating Controller Cluster
+      avi_cluster:
+        controller: "{{ avi_controller }}"
+        avi_credentials: "{{ avi_credentials }}"
+        api_version: "{{ api_version }}"
+        nodes:
+            -
+              name: "{{ node1_avi_controller_vmname }}"
+              ip:
+                type: V4
+                addr: "{{ node1_avi_controller_mgmt_ip }}"
+            -
+              name: "{{ node2_avi_controller_vmname }}"
+              ip:
+                type: V4
+                addr: "{{ node2_avi_controller_mgmt_ip }}"
+            -
+              name: "{{ node3_avi_controller_vmname }}"
+              ip:
+                type: V4
+                addr: "{{ node3_avi_controller_mgmt_ip }}"
+        name: "cluster-0-1"

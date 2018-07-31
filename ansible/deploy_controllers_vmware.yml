@@ -1,0 +1,31 @@
+---
+- hosts: localhost
+  connection: local
+  roles:
+    - { role: avinetworks.avicontroller-vmware }
+  tasks:
+    - name: Deploy Avi Controllers
+      deploy_controller:
+        ovftool_path: /usr/lib/vmware-ovftool
+        vcenter_host: "{{ vc_host }}"
+        vcenter_user: "{{ vc_username }}"
+        vcenter_password: "{{ vc_password }}"
+        con_ova_path: "{{ avi_controller_ova_path }}"
+        con_datacenter: "{{ vcenter_dc_name }}"
+        con_cluster: "{{ item.vcenter_cluster_name }}"
+        con_vm_name: "{{ item.avi_controller_vmname }}"
+        con_vcenter_folder: "{{ vcenter_folder_name }}"
+        con_mgmt_network: "{{ item.avi_controller_mgmt_pg_name }}"
+        con_mgmt_ip: "{{ item.avi_controller_mgmt_ip }}"
+        con_mgmt_mask: "{{ item.avi_controller_mgmt_mask }}"
+        con_default_gw: "{{ item.avi_controller_mgmt_gw }}"
+        con_number_of_cpus: "{{ avi_controller_vcpu }}"
+        con_memory: "{{ avi_controller_memory }}"
+        con_disk_size: "{{ avi_controller_disk_size }}"
+        con_disk_mode: "{{ avi_controller_disk_mode }}"
+        con_datastore: "{{ item.vcenter_datastore_name }}"
+        con_power_on: "{{ avi_controller_power_on }}"
+      with_items:
+        - { vcenter_cluster_name: "{{ az1_vcenter_cluster_name }}", avi_controller_vmname: "{{ node1_avi_controller_vmname }}", avi_controller_mgmt_pg_name: "{{ node1_avi_controller_mgmt_pg_name }}", avi_controller_mgmt_ip: "{{ node1_avi_controller_mgmt_ip }}", avi_controller_mgmt_mask: "{{ node1_avi_controller_mgmt_mask }}", avi_controller_mgmt_gw: "{{ node1_avi_controller_mgmt_gw }}", vcenter_datastore_name: "{{ az1_vcenter_datastore_name }}" }
+        - { vcenter_cluster_name: "{{ az2_vcenter_cluster_name }}", avi_controller_vmname: "{{ node2_avi_controller_vmname }}", avi_controller_mgmt_pg_name: "{{ node2_avi_controller_mgmt_pg_name }}", avi_controller_mgmt_ip: "{{ node2_avi_controller_mgmt_ip }}", avi_controller_mgmt_mask: "{{ node2_avi_controller_mgmt_mask }}", avi_controller_mgmt_gw: "{{ node2_avi_controller_mgmt_gw }}", vcenter_datastore_name: "{{ az2_vcenter_datastore_name }}" }
+        - { vcenter_cluster_name: "{{ az3_vcenter_cluster_name }}", avi_controller_vmname: "{{ node3_avi_controller_vmname }}", avi_controller_mgmt_pg_name: "{{ node3_avi_controller_mgmt_pg_name }}", avi_controller_mgmt_ip: "{{ node3_avi_controller_mgmt_ip }}", avi_controller_mgmt_mask: "{{ node3_avi_controller_mgmt_mask }}", avi_controller_mgmt_gw: "{{ node3_avi_controller_mgmt_gw }}", vcenter_datastore_name: "{{ az3_vcenter_datastore_name }}" }

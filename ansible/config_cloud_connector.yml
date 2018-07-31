@@ -1,0 +1,42 @@
+---
+- connection: local
+  hosts: localhost
+  roles:
+  - { role: avinetworks.avisdk }
+  tasks:
+    - name: "{{ 'Generating Cloud Connection Configuration:' + cloud_name }}"
+      set_fact:
+        avi_config:
+          avi_cloud_discovery_wait: "{{ vc_cloud_discovery }}"
+          cloud:
+            - name: "{{ cloud_name }}"
+              vtype: CLOUD_VCENTER
+              dhcp_enabled: true
+              license_type: "LIC_CORES"
+              vcenter_configuration:
+                username: "{{ vc_username }}"
+                password: "{{ vc_password }}"
+                datacenter: "{{ vcenter_dc_name }}"
+                management_network: "/api/vimgrnwruntime/?name={{ cloud_vcenter_management_network }}"
+                privilege: "WRITE_ACCESS"
+                vcenter_url: "{{ vc_host }}"
+    - name: "{{ 'Cloud configuration:' + cloud_name }}"
+      import_role:
+        name: avinetworks.aviconfig
+      vars:
+        avi_credentials:
+          controller: "{{ avi_controller }}"
+          username: "{{ avi_username }}"
+          password: "{{ avi_password }}"
+          api_version: "{{ api_version }}"
+        avi_config: "{{ avi_config }}"
+    - name: "{{ 'Reassuring cloud configuration after discovery completed:' + cloud_name }}"
+      import_role:
+        name: avinetworks.aviconfig
+      vars:
+        avi_credentials:
+          controller: "{{ avi_controller }}"
+          username: "{{ avi_username }}"
+          password: "{{ avi_password }}"
+          api_version: "{{ api_version }}"
+        avi_config: "{{ avi_config }}"
